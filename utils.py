@@ -5,7 +5,35 @@ import time
 import networkx as nx
 import matplotlib.pyplot as plt
 from graph import Graph
-from search_algorithms import bfs, dfs
+from search_algorithms import a_star, bfs, bidirectional, dfs, dijkstra, greedy
+
+algorithms = {
+    "Breadth-First Search": bfs,
+    "Depth-First Search": dfs,
+    "Dijkstra": dijkstra,
+    "A*": a_star,
+    "Greedy Best-First Search": greedy,
+    "Bidirectional Search": bidirectional,
+}
+
+descriptions = {
+    "Breadth-First Search": "Explores in rings, like a ripple spreading from the start. "
+    "It is guaranteed to find the path with the *fewest hops*, but ignores how long each "
+    "edge is, so that path is not always the cheapest.",
+    "Depth-First Search": "Dives down one branch as far as it can before backtracking. "
+    "Simple and memory-light, but its path is rarely the shortest.",
+    "Dijkstra": "Always expands the unexplored node that is cheapest to reach, so it is "
+    "guaranteed to find the path with the *lowest total cost*.",
+    "A*": "Dijkstra with a sense of direction: it favours nodes that lie towards the goal, "
+    "finding the same cheapest path while exploring less. Its straight-line guess never "
+    "overestimates, which is what keeps it exact.",
+    "Greedy Best-First Search": "Always jumps to the node that *looks* closest to the goal "
+    "and ignores the distance already travelled. Very fast, but easily lured into detours: "
+    "its path is often not the cheapest.",
+    "Bidirectional Search": "Launches two breadth-first waves, one from each end (green from "
+    "the start, violet from the goal), layer by layer, and stops when they meet. Like BFS it "
+    "guarantees the *fewest hops*, while two small circles usually cover less ground than one big one.",
+}
 
 
 def generate_graph(node_number, seed):
@@ -65,12 +93,11 @@ def default_endpoints(graph):
 
 
 def graph_search(algorithm, graph, start, goal):
-    if algorithm == "Breadth-First Search":
-        return bfs(graph, start, goal)
-    elif algorithm == "Depth-First Search":
-        return dfs(graph, start, goal)
-    else:
-        return bfs(graph, start, goal)
+    result = algorithms[algorithm](graph, start, goal)
+    # Only bidirectional search explores from the goal too
+    if len(result) == 2:
+        return result + (set(),)
+    return result
 
 
 def path_cost(graph, path):
@@ -95,6 +122,9 @@ def plot_graph(graph, color_map, plot_holder, path=None):
     if path:
         path_edges = list(zip(path, path[1:]))
         nx.draw_networkx_edges(G, pos, ax=ax, edgelist=path_edges, edge_color="orange", width=4)
+        if graph.weighted:
+            edge_labels = {(a, b): graph.cost(a, b) for a, b in path_edges}
+            nx.draw_networkx_edge_labels(G, pos, ax=ax, edge_labels=edge_labels, font_color="darkorange")
     plot_holder.pyplot(fig)
     plt.close(fig)
 
@@ -107,19 +137,22 @@ def endpoint_colors(graph, start, goal, color="lightgray"):
 
 
 def run_visualization(algorithm, graph, plot_holder, start, goal, step_duration=0.5):
-    visited, path = graph_search(algorithm, graph, start, goal)
+    visited, path, from_goal = graph_search(algorithm, graph, start, goal)
     n = len(visited)
     for i in range(n):
         color_map = endpoint_colors(graph, start, goal)
         for node in visited[:i]:
             if node not in (start, goal):
-                color_map[node] = "lightgreen"
+                color_map[node] = "plum" if node in from_goal else "lightgreen"
         color_map[visited[i]] = "cyan"
         plot_graph(graph, color_map, plot_holder)
         time.sleep(step_duration)
     color_map = endpoint_colors(graph, start, goal)
     for node in visited:
         if node not in (start, goal):
-            color_map[node] = "gold" if node in path else "lightgreen"
+            if node in path:
+                color_map[node] = "gold"
+            else:
+                color_map[node] = "plum" if node in from_goal else "lightgreen"
     plot_graph(graph, color_map, plot_holder, path)
     return visited, path

@@ -23,14 +23,18 @@ with st.sidebar:
     st.divider()
     algorithm = st.radio(
         "Please select the desired search algorithm",
-        (
-            "Breadth-First Search",
-            "Depth-First Search",
-        ),
+        tuple(algorithms),
+    )
+    st.divider()
+    mode = st.radio(
+        "Please select the edge costs",
+        ("Weighted", "Unweighted"),
+        help="Weighted: each edge costs its length. Unweighted: every edge costs 1.",
     )
     st.divider()
 
     graph = generate_graph(node_number, st.session_state.seed)
+    graph.weighted = mode == "Weighted"
     first_node = 0
     last_node = len(graph.graph) - 1
     default_start, default_goal = default_endpoints(graph)
@@ -61,10 +65,15 @@ with st.sidebar:
 st.header("Graph Search Algorithms")
 st.divider()
 st.markdown(f"**Selected search method:** {algorithm}")
+st.markdown(descriptions[algorithm])
+if graph.weighted:
+    st.markdown("The graph is **weighted**: each edge costs its length, shown on the path once found.")
+else:
+    st.markdown("The graph is **unweighted**: every edge costs 1, so the fewest hops is also the cheapest path.")
 st.markdown(f"**Number of nodes in the graph:** {len(graph.graph)}")
 st.markdown(
     ":blue[**start**] · :red[**goal**] · :green[**explored**] · "
-    ":orange[**path**]"
+    ":violet[**explored from the goal**] · :orange[**path**]"
 )
 
 st.divider()
@@ -80,7 +89,8 @@ if begin:
     if path:
         st.markdown(
             f"Explored **{len(visited)}** / {len(graph.graph)} nodes · "
-            f"path of **{len(path) - 1}** hops, total cost **{path_cost(graph, path)}**"
+            f"path of **{len(path) - 1}** hops"
+            + (f", total cost **{path_cost(graph, path)}**" if graph.weighted else "")
         )
     else:
         st.markdown(f"Explored **{len(visited)}** nodes · no path")
