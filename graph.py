@@ -14,7 +14,6 @@ class Graph:
         self.weights = weights
         # Weighted: an edge costs its weight. Unweighted: every edge costs 1.
         self.weighted = weighted
-        self.heuristic_scales = {}
 
     def neighbors(self, node):
         return self.graph[node]
@@ -28,14 +27,20 @@ class Graph:
         (xa, ya), (xb, yb) = self.positions[a], self.positions[b]
         return math.hypot(xa - xb, ya - yb)
 
-    def heuristic(self, node, goal):
-        # Straight-line distance, scaled so it never overestimates the real cost
-        # (which keeps A* exact): by the smallest weight per unit of length, or,
-        # when every edge costs 1, by the longest edge a single hop can cover.
-        if self.weighted not in self.heuristic_scales:
-            if self.weighted:
-                scale = min(w / self.distance(a, b) for (a, b), w in self.weights.items())
-            else:
-                scale = 1 / max(self.distance(a, b) for a, b in self.weights)
-            self.heuristic_scales[self.weighted] = scale
-        return self.distance(node, goal) * self.heuristic_scales[self.weighted]
+    def heuristic_scale(self):
+        # Scale for the straight-line distance so it never overestimates the real
+        # cost (which keeps A* exact): the smallest cost per unit of length over
+        # all edges. When every edge costs 1, that is 1 / the longest edge.
+        # Zero-length edges are skipped: they cannot make the estimate too high.
+        ratios = [
+            self.cost(a, b) / self.distance(a, b)
+            for a in self.graph
+            for b in self.neighbors(a)
+            if self.distance(a, b) > 0
+        ]
+        return min(ratios, default=0)
+
+    def heuristic(self, node, goal, scale=None):
+        if scale is None:
+            scale = self.heuristic_scale()
+        return self.distance(node, goal) * scale
