@@ -1,20 +1,42 @@
-def dfs(graph, start, visited=None):
-    if visited is None:
-        visited = []
-    visited.append(start)
-    for neighbor in graph[start]:
-        if neighbor not in visited:
-            dfs(graph, neighbor, visited)
-    return visited
+def build_path(parents, start, goal):
+    if goal not in parents:
+        return []
+    path = [goal]
+    while path[-1] != start:
+        path.append(parents[path[-1]])
+    return path[::-1]
 
 
-def bfs(graph, start):
+def dfs(graph, start, goal):
+    visited = []
+    parents = {start: None}
+
+    def explore(node):
+        visited.append(node)
+        if node == goal:
+            return True
+        for neighbor in graph.neighbors(node):
+            if neighbor not in visited:
+                parents[neighbor] = node
+                if explore(neighbor):
+                    return True
+        return False
+
+    explore(start)
+    return visited, build_path(parents, start, goal)
+
+
+def bfs(graph, start, goal):
     queue = [start]
-    visited = [start]
+    visited = []
+    parents = {start: None}
     while len(queue) > 0:
         current = queue.pop(0)
-        for neighbor in graph[current]:
-            if neighbor not in visited:
-                visited.append(neighbor)
+        visited.append(current)
+        if current == goal:
+            break
+        for neighbor in graph.neighbors(current):
+            if neighbor not in parents:
+                parents[neighbor] = current
                 queue.append(neighbor)
-    return visited
+    return visited, build_path(parents, start, goal)
