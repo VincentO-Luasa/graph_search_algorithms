@@ -2,3 +2,5 @@ streamlit
 networkx
 matplotlib
 numpy
+pandas
+jinja2
