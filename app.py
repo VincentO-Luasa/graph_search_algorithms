@@ -1,5 +1,6 @@
 import random
 
+import pandas as pd
 import streamlit as st
 
 from utils import *
@@ -78,7 +79,9 @@ st.markdown(
 
 st.divider()
 
-begin = st.button("Begin search")
+col1, col2 = st.columns(2)
+begin = col1.button("Begin search")
+race_all = col2.button("Race all six")
 
 plot_holder = st.empty()
 
@@ -94,3 +97,22 @@ if begin:
         )
     else:
         st.markdown(f"Explored **{len(visited)}** nodes · no path")
+
+if race_all:
+    results = race(graph, start, goal)
+    plot_race(graph, start, goal, results, plot_holder)
+    columns = ["explored", "hops", "cost"] if graph.weighted else ["explored", "hops"]
+    table = pd.DataFrame(results).T[columns].astype(int)
+    st.dataframe(table.style.highlight_min(props="font-weight: bold"))
+    if graph.weighted:
+        st.markdown(
+            "Same start, same goal, **weighted** graph. **Bold** marks the best in each column. "
+            "BFS and bidirectional always find the fewest hops; Dijkstra and A* always find the "
+            "lowest cost (A* by exploring less); greedy is frugal but carries no guarantee, and DFS wanders."
+        )
+    else:
+        st.markdown(
+            "Same start, same goal, **unweighted** graph: every edge costs 1. **Bold** marks the best "
+            "in each column. BFS, bidirectional, Dijkstra and A* all find the fewest hops; they differ "
+            "only in how much they explore. Greedy and DFS carry no guarantee."
+        )

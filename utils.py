@@ -105,10 +105,18 @@ def path_cost(graph, path):
 
 
 def plot_graph(graph, color_map, plot_holder, path=None):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    draw_graph(graph, color_map, ax, path)
+    plot_holder.pyplot(fig)
+    plt.close(fig)
+
+
+def draw_graph(graph, color_map, ax, path=None, with_labels=True):
     G = nx.Graph(graph.graph)
     pos = graph.positions
     node_size = max(120, 500 * 20 / len(G))
-    fig, ax = plt.subplots(figsize=(8, 8))
+    if not with_labels:
+        node_size /= 2
     nx.draw(
         G,
         pos,
@@ -116,23 +124,32 @@ def plot_graph(graph, color_map, plot_holder, path=None):
         node_size=node_size,
         node_color=[color_map[node] for node in G],
         edge_color="lightgray",
-        with_labels=True,
+        with_labels=with_labels,
         font_size=8,
     )
     if path:
         path_edges = list(zip(path, path[1:]))
         nx.draw_networkx_edges(G, pos, ax=ax, edgelist=path_edges, edge_color="orange", width=4)
-        if graph.weighted:
+        if graph.weighted and with_labels:
             edge_labels = {(a, b): graph.cost(a, b) for a, b in path_edges}
             nx.draw_networkx_edge_labels(G, pos, ax=ax, edge_labels=edge_labels, font_color="darkorange")
-    plot_holder.pyplot(fig)
-    plt.close(fig)
 
 
 def endpoint_colors(graph, start, goal, color="lightgray"):
     color_map = {node: color for node in graph.graph}
     color_map[start] = "royalblue"
     color_map[goal] = "tomato"
+    return color_map
+
+
+def final_colors(graph, start, goal, visited, path, from_goal):
+    color_map = endpoint_colors(graph, start, goal)
+    for node in visited:
+        if node not in (start, goal):
+            if node in path:
+                color_map[node] = "gold"
+            else:
+                color_map[node] = "plum" if node in from_goal else "lightgreen"
     return color_map
 
 
@@ -147,12 +164,35 @@ def run_visualization(algorithm, graph, plot_holder, start, goal, step_duration=
         color_map[visited[i]] = "cyan"
         plot_graph(graph, color_map, plot_holder)
         time.sleep(step_duration)
-    color_map = endpoint_colors(graph, start, goal)
-    for node in visited:
-        if node not in (start, goal):
-            if node in path:
-                color_map[node] = "gold"
-            else:
-                color_map[node] = "plum" if node in from_goal else "lightgreen"
-    plot_graph(graph, color_map, plot_holder, path)
+    plot_graph(graph, final_colors(graph, start, goal, visited, path, from_goal), plot_holder, path)
     return visited, path
+
+
+def race(graph, start, goal):
+    # Same start, same goal, same costs: run every algorithm and compare
+    results = {}
+    for algorithm in algorithms:
+        visited, path, from_goal = graph_search(algorithm, graph, start, goal)
+        results[algorithm] = {
+            "visited": visited,
+            "path": path,
+            "from_goal": from_goal,
+            "explored": len(visited),
+            "hops": len(path) - 1,
+            "cost": path_cost(graph, path),
+        }
+    return results
+
+
+def plot_race(graph, start, goal, results, plot_holder):
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8.5))
+    for ax, (algorithm, result) in zip(axes.flat, results.items()):
+        color_map = final_colors(graph, start, goal, result["visited"], result["path"], result["from_goal"])
+        draw_graph(graph, color_map, ax, result["path"], with_labels=False)
+        title = f"{algorithm}\nexplored {result['explored']} · {result['hops']} hops"
+        if graph.weighted:
+            title += f" · cost {result['cost']}"
+        ax.set_title(title, fontsize=10)
+    fig.tight_layout()
+    plot_holder.pyplot(fig)
+    plt.close(fig)
